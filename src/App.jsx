@@ -39,7 +39,7 @@ function accountLabel(type) {
 }
 
 function PairStatus({ member, lineRoster }) {
-  if (!member.gameId) return <span className="status status-warning">LINE 有／遊戲無</span>;
+  if (!member.gameId) return <span className="status status-warning">LINE 尚未配對遊戲</span>;
   if (!member.lineName) return <span className="status status-warning">未配對 LINE</span>;
   if (lineRoster.length && !lineRoster.some(name => normalizeId(name) === normalizeId(member.lineName))) {
     return <span className="status status-warning">LINE 名單未找到</span>;
@@ -226,6 +226,7 @@ export default function App() {
     setNotice('LINE 群組名單已更新，共 ' + names.length + ' 個名稱。');
     setModal(null);
     setGroup(GROUPS[5]);
+    setSearch(''); setSearchAll(false); setFilter('all');
   }
 
   function importGameRoster(preview) {
@@ -332,7 +333,7 @@ export default function App() {
           <div className="summary-card"><span><span className="stat-id">01</span> 遊戲帳號</span><strong>{totals.accounts}</strong><small>ALL PLAYERS</small></div>
           <div className="summary-card"><span><span className="stat-id">02</span> 已配對角色</span><strong>{totals.paired}</strong><small>MAPPED CHARACTERS</small></div>
           <div className="summary-card"><span><span className="stat-id">03</span> 未配對遊戲</span><strong>{totals.pending}</strong><small>GAME WITHOUT LINE</small></div>
-          <div className="summary-card"><span><span className="stat-id">04</span> LINE 群組</span><strong>{totals.lines}</strong><small>LINE WITHOUT GAME: {totals.lineOnly}</small></div>
+          <div className="summary-card"><span><span className="stat-id">04</span> LINE 群組</span><strong>{totals.lines}</strong><small>LINE UNMATCHED: {totals.lineOnly}</small></div>
         </div>
 
         <section className="roster-panel" aria-label="公會團別名單">
