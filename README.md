@@ -41,7 +41,7 @@ React + Vite。網站預設部署路徑為 `/guild-member-manager/`。
 1. 將功能 PR 經測試後併入 `develop`，驗收後再合併至 `main`。
 2. Repository → **Settings → Pages → Build and deployment → Source** 選擇 **GitHub Actions**。
 3. `main` push 後，`.github/workflows/deploy.yml` 會建置並部署到 `https://b110212000.github.io/guild-member-manager/`（必須先完成 Pages 啟用）。
-4. 如尚未設定 Pages，程式碼合併後不代表已上線。
+4. **推薦 Source=GitHub Actions**，避免 GitHub 內建的 `pages build and deployment` 將原始碼蓋過 Vite `dist` 成品。若先前選了 Deploy from a branch，流程會在內建 Pages 發布結束後再部署 React 成品。\n5. 重跑工作時使用獨立的 artifact 名稱，避免重複名稱造成部署失敗。\n6. 如尚未設定 Pages，程式碼合併後不代表已上線。
 
 開發規則：Issue → `feature/*` → PR 到 `develop` → CI 驗收 → 合併，再定期由 `develop` PR 到 `main`。
 
