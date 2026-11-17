@@ -5,8 +5,17 @@
 ## FEV 暗色棒球視覺
 
 - 黑色俱樂部球場風格與電光藍操作狀態、球場弧線／球縫元素
-- FEV 隊徽 SVG（`public/fev-logo.svg`）、Favicon 與行動裝置標記一致
+- FEV 純英文字標 SVG 與 iPhone App 圖示一致；棒球場圖形只在背景。
 - 保留原有六團名單、增修刪、搜尋、Excel/CSV 匯入、備份還原；不改動資料儲存與權限機制
+
+## iPhone PWA 安裝
+使用 Safari 開啟正式網址，點「分享」→「加入主畫面」→「新增」，即可像 App 一樣全螢幕使用 FEV。
+
+- manifest、180px Apple Touch Icon、192/512px PWA Icon 和 safe area 支援 iPhone。
+- 首次在線開啟後，Service Worker 快取 App Shell（含 Vite 打包後 JS/CSS）；離線可以啟動。
+- 新版本可在頁面按更新載入；名單仍存在**本裝置的 localStorage**，不會跨管理員同步。
+- **重要：** 若要重裝 PWA 或清除網站資料，先下載 JSON 備份，以免丟失名單。
+- PNG App Icon 在 `npm run build` 時由 `sharp` 根據文字 Logo 產生，Service Worker 預載清單由 `scripts/finalize-sw.mjs` 寫入。
 
 ## 第一版功能
 
