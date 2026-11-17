@@ -8,7 +8,7 @@ const groupAliases = new Map([
   ...GROUPS.slice(0, 5).flatMap((group, i) => {
     const digit = String(i + 1);
     const numeral = ['一', '二', '三', '四', '五'][i];
-    return [group, digit + '團', '第' + digit + '團', '第' + numeral + '團', digit, numeral, 'group' + digit]
+    return [group, digit + '團', numeral + '團', '第' + digit + '團', '第' + numeral + '團', digit, numeral, 'group' + digit]
       .map(alias => [header(alias), group]);
   }),
   ...['無遊戲團', '無團', '未分團', '待分團', '未入團', 'none', 'free', 'freeagent'].map(alias => [header(alias), GROUPS[5]])
