@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import readXlsxFile from 'read-excel-file';
+import RosterImportModal from './RosterImportModal.jsx';
+import { LINE_ROSTER_KEY, compareRosters, applyGameImport, normalizeLineRoster } from './rosterImport.js';
 import PwaControls from './PwaControls.jsx';
 import {
   AlertCircle, ArrowLeftRight, Check, CheckCircle2, ChevronRight, CircleHelp,
@@ -7,8 +8,8 @@ import {
   Inbox, Pencil, Plus, Search, ShieldAlert, Trash2, Upload, UsersRound, X
 } from 'lucide-react';
 import {
-  GROUPS, DATA_KEY, LOG_KEY, applyPreparedImport, duplicateGame,
-  makeId, parseCsv, prepareImport, readLocal, recordsToCsv, validateMember
+  GROUPS, DATA_KEY, LOG_KEY, duplicateGame, normalizeId,
+  makeId, readLocal, recordsToCsv, validateMember
 } from './data.js';
 
 const DEFAULT_FORM = {
@@ -37,9 +38,12 @@ function accountLabel(type) {
   return type === 'alt' ? '小號' : '主號';
 }
 
-function PairStatus({ member }) {
-  if (!member.gameId) return <span className="status status-warning">缺遊戲 ID</span>;
-  if (!member.lineName) return <span className="status status-warning">缺 LINE 名稱</span>;
+function PairStatus({ member, lineRoster }) {
+  if (!member.gameId) return <span className="status status-warning">LINE 尚未配對遊戲</span>;
+  if (!member.lineName) return <span className="status status-warning">未配對 LINE</span>;
+  if (lineRoster.length && !lineRoster.some(name => normalizeId(name) === normalizeId(member.lineName))) {
+    return <span className="status status-warning">LINE 名單未找到</span>;
+  }
   return <span className="status status-success"><Check size={13} /> 已配對</span>;
 }
 
@@ -99,126 +103,6 @@ function MemberModal({ form, setForm, editing, error, onSave, onClose }) {
   );
 }
 
-function ImportModal({ group, records, onImport, onClose }) {
-  const inputRef = useRef(null);
-  const [rows, setRows] = useState([]);
-  const [filename, setFilename] = useState('');
-  const [strategy, setStrategy] = useState('skip');
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
-  const preview = useMemo(() => prepareImport(records, rows, group, strategy), [records, rows, group, strategy]);
-  const actionable = preview.added + preview.updated;
-
-  async function loadFile(event) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    setError('');
-    setRows([]);
-    setFilename('');
-    setBusy(true);
-    try {
-      if (file.size > 5 * 1024 * 1024) throw new Error('單一檔案不可超過 5 MB。');
-      const name = file.name.toLowerCase();
-      let parsed;
-      if (name.endsWith('.csv') || name.endsWith('.tsv')) parsed = parseCsv(await file.text());
-      else if (name.endsWith('.xlsx')) parsed = await readXlsxFile(file);
-      else throw new Error('僅支援 .xlsx、.csv 或 .tsv 檔案。');
-      if (!parsed.length) throw new Error('檔案沒有可匯入的資料。');
-      if (parsed.length > 2001) throw new Error('一次最多匯入 2,000 筆資料。');
-      setRows(parsed);
-      setFilename(file.name);
-    } catch (cause) {
-      setError(cause.message || '讀取失敗，請檢查檔案格式。');
-    } finally {
-      setBusy(false);
-      if (inputRef.current) inputRef.current.value = '';
-    }
-  }
-
-  function sample() {
-    saveFile('公會匯入範本.csv', recordsToCsv([
-      { gameId: '範例玩家01', lineName: '小明', team: 'A隊', accountType: 'main' },
-      { gameId: '範例分身01', lineName: '小明', team: 'B隊', accountType: 'alt' },
-      { gameId: '', lineName: '尚未進團的人', team: '', accountType: 'main' }
-    ]), 'text/csv;charset=utf-8');
-  }
-
-  return (
-    <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <section className="modal import-modal" role="dialog" aria-modal="true" aria-labelledby="import-title">
-        <div className="modal-heading">
-          <div>
-            <h2 id="import-title">匯入{group}名單</h2>
-            <p>匯入後資料會歸到「{group}」，不影響其他團別的非重複帳號。</p>
-          </div>
-          <button className="icon-btn" aria-label="關閉" onClick={onClose}><X size={19} /></button>
-        </div>
-        <div className="modal-body">
-          <div className="upload-panel">
-            <FileSpreadsheet size={28} />
-            <strong>{filename || '選擇 Excel 或 CSV 名單'}</strong>
-            <span>支援 .xlsx、.csv、.tsv · 最多 2,000 筆</span>
-            <input aria-label="選擇匯入檔案" ref={inputRef} type="file" accept=".xlsx,.csv,.tsv" onChange={loadFile} />
-            <button type="button" className="btn btn-outline" disabled={busy} onClick={() => inputRef.current?.click()}>
-              <Upload size={16} /> {busy ? '讀取中…' : '選擇檔案'}
-            </button>
-          </div>
-          <div className="import-help">
-            <span>欄位：遊戲 ID、LINE 名稱、隊伍、帳號類型（主號／小號）</span>
-            <button className="text-link" onClick={sample}><Download size={15} /> 下載範本</button>
-          </div>
-          {error && <p className="form-error" role="alert"><AlertCircle size={16} /> {error}</p>}
-          {rows.length > 0 && (
-            <>
-              <div className="import-heading">
-                <h3>匯入預覽</h3>
-                <span className="small-muted">共 {preview.entries.length} 筆</span>
-              </div>
-              <div className="import-stats">
-                <span className="mini-stat positive">新增 {preview.added}</span>
-                <span className="mini-stat">更新 {preview.updated}</span>
-                <span className="mini-stat neutral">跳過 {preview.skipped}</span>
-                <span className="mini-stat warning">錯誤 {preview.invalid}</span>
-              </div>
-              <div className="radio-panel">
-                <strong>如果遊戲 ID 已存在其他團別</strong>
-                <label><input type="radio" name="duplicate" value="skip" checked={strategy === 'skip'} onChange={() => setStrategy('skip')} /> 跳過，不更動原資料</label>
-                <label><input type="radio" name="duplicate" value="replace" checked={strategy === 'replace'} onChange={() => setStrategy('replace')} /> 更新資料並移到{group}</label>
-              </div>
-              <div className="preview-scroll">
-                <table className="preview-table">
-                  <thead><tr><th>行</th><th>遊戲 ID</th><th>LINE 名稱</th><th>隊伍</th><th>處理</th></tr></thead>
-                  <tbody>
-                    {preview.entries.slice(0, 30).map((entry) => (
-                      <tr key={entry.rowNumber}>
-                        <td>{entry.rowNumber}</td>
-                        <td>{entry.gameId || '—'}</td>
-                        <td>{entry.lineName || '—'}</td>
-                        <td>{entry.team || '—'}</td>
-                        <td><span className={'import-action ' + entry.action} title={entry.reason || entry.existingGroup || ''}>
-                          {entry.action === 'add' ? '新增' : entry.action === 'update' ? '更新' : entry.action === 'skip' ? '跳過' : '錯誤'}
-                        </span></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {preview.entries.length > 30 && <p className="preview-more">僅顯示前 30 筆，確認時會處理全部資料。</p>}
-              </div>
-              {preview.invalid > 0 && <p className="small-muted">有 {preview.invalid} 筆內容不完整或重複，將略過這些資料。</p>}
-            </>
-          )}
-          <div className="modal-actions">
-            <button className="btn btn-quiet" onClick={onClose}>取消</button>
-            <button className="btn btn-primary" disabled={!actionable || busy} onClick={() => onImport(preview, group)}>
-              <Check size={17} /> 確認匯入 {actionable} 筆
-            </button>
-          </div>
-        </div>
-      </section>
-    </div>
-  );
-}
-
 function LogModal({ logs, onClose }) {
   return (
     <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
@@ -253,6 +137,7 @@ export default function App() {
     const saved = readLocal(DATA_KEY, []);
     return Array.isArray(saved) ? saved : [];
   });
+  const [lineRoster, setLineRoster] = useState(() => normalizeLineRoster(readLocal(LINE_ROSTER_KEY, [])));
   const [logs, setLogs] = useState(() => {
     const saved = readLocal(LOG_KEY, []);
     return Array.isArray(saved) ? saved : [];
@@ -272,6 +157,11 @@ export default function App() {
     try { localStorage.setItem(DATA_KEY, JSON.stringify(records)); }
     catch { setNotice('儲存空間不足或被禁止，資料可能無法保留，請先匯出備份。'); }
   }, [records]);
+
+  useEffect(() => {
+    try { localStorage.setItem(LINE_ROSTER_KEY, JSON.stringify(lineRoster)); }
+    catch { setNotice('LINE 名單無法儲存，請先匯出備份。'); }
+  }, [lineRoster]);
 
   useEffect(() => {
     try { localStorage.setItem(LOG_KEY, JSON.stringify(logs)); } catch { /* Browser storage may be disabled. */ }
@@ -295,8 +185,8 @@ export default function App() {
   }
 
   function openEdit(member) {
-    setEditing(member.id);
-    setForm({ ...member });
+    setEditing(member.virtual ? null : member.id);
+    setForm({ ...member, id: member.virtual ? '' : member.id });
     setFormError('');
     setModal('member');
   }
@@ -320,27 +210,40 @@ export default function App() {
   }
 
   function removeMember(member) {
-    if (!window.confirm('確定刪除「' + (member.gameId || member.lineName) + '」嗎？這筆資料將從本機移除。')) return;
-    setRecords((previous) => previous.filter((item) => item.id !== member.id));
-    track('刪除成員', (member.gameId || member.lineName) + ' · ' + member.group);
+    const subject = member.gameId || member.lineName;
+    if (!window.confirm('確定刪除「' + subject + '」嗎？')) return;
+    if (!member.gameId && member.lineName) {
+      setLineRoster(previous => previous.filter(name => normalizeId(name) !== normalizeId(member.lineName)));
+    }
+    if (!member.virtual) setRecords(previous => previous.filter(item => item.id !== member.id));
+    track('刪除成員', subject + ' · ' + member.group);
     setNotice('成員已刪除');
   }
 
-  function importMembers(preview, destination) {
-    setRecords((previous) => applyPreparedImport(previous, preview, destination));
-    track('匯入名單', destination + ' · 新增 ' + preview.added + ' 筆、更新 ' + preview.updated + ' 筆');
-    setNotice(destination + '：新增 ' + preview.added + ' 筆，更新 ' + preview.updated + ' 筆，跳過 ' + (preview.skipped + preview.invalid) + ' 筆');
+  function importLineRoster(names, summary) {
+    setLineRoster(names);
+    track('匯入 LINE 群組', names.length + ' 個 LINE 名稱，新增 ' + summary.added + '，移除 ' + summary.removed);
+    setNotice('LINE 群組名單已更新，共 ' + names.length + ' 個名稱。');
+    setModal(null);
+    setGroup(GROUPS[5]);
+    setSearch(''); setSearchAll(false); setFilter('all');
+  }
+
+  function importGameRoster(preview) {
+    setRecords(previous => applyGameImport(previous, preview));
+    track('匯入全部遊戲團', '新增 ' + preview.added + ' 筆、更新／移團 ' + preview.updated + ' 筆');
+    setNotice('遊戲名單匯入完成：新增 ' + preview.added + ' 筆，更新 ' + preview.updated + ' 筆，錯誤 ' + preview.invalid + ' 筆。');
     setModal(null);
   }
 
   function exportGroup() {
-    const selected = records.filter((item) => item.group === group);
+    const selected = allMembers.filter((item) => item.group === group);
     saveFile(group + '-成員名單.csv', recordsToCsv(selected), 'text/csv;charset=utf-8');
     setNotice('已匯出' + group + '名單');
   }
 
   function backup() {
-    const value = { version: 1, exportedAt: new Date().toISOString(), records, logs };
+    const value = { version: 2, exportedAt: new Date().toISOString(), records, lineRoster, logs };
     saveFile('公會名單備份.json', JSON.stringify(value, null, 2), 'application/json;charset=utf-8');
     setNotice('JSON 備份已下載，請妥善保管檔案。');
   }
@@ -351,13 +254,14 @@ export default function App() {
     try {
       if (file.size > 5 * 1024 * 1024) throw new Error('備份檔不可超過 5 MB');
       const backupData = JSON.parse(await file.text());
-      if (backupData.version !== 1 || !Array.isArray(backupData.records) || !Array.isArray(backupData.logs)) throw new Error('不是有效的公會備份格式');
+      if (![1,2].includes(backupData.version) || !Array.isArray(backupData.records) || !Array.isArray(backupData.logs) || (backupData.version === 2 && !Array.isArray(backupData.lineRoster))) throw new Error('不是有效的公會備份格式');
       const validated = backupData.records.map((row) => validateMember(row));
       if (validated.some((item) => item.error)) throw new Error('備份中包含不完整的成員資料');
       const keys = validated.map((item) => item.record.gameId.toLocaleLowerCase()).filter(Boolean);
       if (new Set(keys).size !== keys.length) throw new Error('備份中有重複的遊戲 ID');
       if (!window.confirm('還原會取代目前此瀏覽器的所有名單與操作紀錄。確定繼續？')) return;
       setRecords(validated.map((item) => item.record));
+      setLineRoster(normalizeLineRoster(backupData.lineRoster || []));
       setLogs(backupData.logs.slice(0, 200));
       setNotice('已還原 ' + validated.length + ' 筆成員資料');
     } catch (cause) {
@@ -367,21 +271,32 @@ export default function App() {
     }
   }
 
-  const totals = useMemo(() => ({
-    accounts: records.filter((item) => item.gameId).length,
-    paired: records.filter((item) => item.gameId && item.lineName).length,
-    pending: records.filter((item) => !item.gameId || !item.lineName).length,
-    lines: new Set(records.map((item) => item.lineName?.trim()).filter(Boolean)).size
-  }), [records]);
+  const comparison = useMemo(() => compareRosters(records, lineRoster), [records, lineRoster]);
+  const allMembers = useMemo(() => {
+    const realLineOnly = new Set(records.filter(member => !member.gameId && member.lineName).map(member => normalizeId(member.lineName)));
+    const virtual = comparison.lineOnly.filter(name => !realLineOnly.has(normalizeId(name)))
+      .map(name => ({ id: 'line-only:' + encodeURIComponent(name), group: GROUPS[5],
+        gameId: '', lineName: name, team: '', accountType: 'main', virtual: true }));
+    return [...records, ...virtual];
+  }, [records, comparison]);
 
-  const visible = useMemo(() => records.filter((member) => {
+  const totals = useMemo(() => ({
+    accounts: records.filter(item => item.gameId).length,
+    paired: comparison.matched.length,
+    pending: comparison.gameMissingLine.length,
+    lines: lineRoster.length,
+    lineOnly: comparison.lineOnly.length
+  }), [records, comparison, lineRoster]);
+
+  const visible = useMemo(() => allMembers.filter(member => {
     if (!searchAll && member.group !== group) return false;
-    if (filter === 'paired' && (!member.gameId || !member.lineName)) return false;
-    if (filter === 'missing-line' && (!member.gameId || member.lineName)) return false;
+    const inLine = member.lineName && (!lineRoster.length || lineRoster.some(name => normalizeId(name) === normalizeId(member.lineName)));
+    if (filter === 'paired' && (!member.gameId || !inLine)) return false;
+    if (filter === 'missing-line' && (!member.gameId || inLine)) return false;
     if (filter === 'missing-game' && (!member.lineName || member.gameId)) return false;
     const query = search.trim().toLocaleLowerCase();
-    return !query || [member.gameId, member.lineName, member.team, member.group].some((value) => (value || '').toLocaleLowerCase().includes(query));
-  }), [records, searchAll, group, filter, search]);
+    return !query || [member.gameId, member.lineName, member.team, member.group].some(value => (value || '').toLocaleLowerCase().includes(query));
+  }), [allMembers, lineRoster, searchAll, group, filter, search]);
 
   function selectGroup(next) {
     setGroup(next);
@@ -416,9 +331,9 @@ export default function App() {
 
         <div className="summary-grid" aria-label="名單統計">
           <div className="summary-card"><span><span className="stat-id">01</span> 遊戲帳號</span><strong>{totals.accounts}</strong><small>ALL PLAYERS</small></div>
-          <div className="summary-card"><span><span className="stat-id">02</span> 已配對</span><strong>{totals.paired}</strong><small>VERIFIED PAIRS</small></div>
-          <div className="summary-card"><span><span className="stat-id">03</span> 待配對</span><strong>{totals.pending}</strong><small>PENDING MATCH</small></div>
-          <div className="summary-card"><span><span className="stat-id">04</span> LINE 名稱</span><strong>{totals.lines}</strong><small>UNIQUE DISPLAY NAMES</small></div>
+          <div className="summary-card"><span><span className="stat-id">02</span> 已配對角色</span><strong>{totals.paired}</strong><small>MAPPED CHARACTERS</small></div>
+          <div className="summary-card"><span><span className="stat-id">03</span> 未配對遊戲</span><strong>{totals.pending}</strong><small>GAME WITHOUT LINE</small></div>
+          <div className="summary-card"><span><span className="stat-id">04</span> LINE 群組</span><strong>{totals.lines}</strong><small>LINE UNMATCHED: {totals.lineOnly}</small></div>
         </div>
 
         <section className="roster-panel" aria-label="公會團別名單">
@@ -427,7 +342,7 @@ export default function App() {
               {GROUPS.map((item, index) => (
                 <button role="tab" aria-selected={item === group} key={item} onClick={() => selectGroup(item)}
                   className={'group-tab ' + (item === group ? 'active' : '')}>
-                  <span className="tab-index">{index === 5 ? "FA" : String(index + 1).padStart(2, "0")}</span><span className="tab-label">{item}</span><span className="tab-count">{records.filter((member) => member.group === item).length}</span>
+                  <span className="tab-index">{index === 5 ? "FA" : String(index + 1).padStart(2, "0")}</span><span className="tab-label">{item}</span><span className="tab-count">{allMembers.filter((member) => member.group === item).length}</span>
                 </button>
               ))}
             </div>
@@ -437,7 +352,7 @@ export default function App() {
             <div className="section-heading">
               <div><div className="section-overline"><span className="section-overline-mark" /> TEAM MANAGEMENT <span>/</span> PLAYER ROSTER</div><h3>{searchAll ? '所有團別' : group + '名單'}</h3><p>顯示 {visible.length} 筆資料{searchAll ? ' · 跨團搜尋' : ''}</p></div>
               <div className="primary-actions">
-                <button className="btn btn-outline" onClick={() => setModal('import')}><FileUp size={17} /> 匯入<span className="optional-label">名單</span></button>
+                <button className="btn btn-outline" onClick={() => setModal('import')}><FileUp size={17} /> 匯入<span className="optional-label"> LINE／遊戲</span></button>
                 <button className="btn btn-primary" onClick={openNew}><Plus size={18} /> 新增<span className="optional-label">成員</span></button>
               </div>
             </div>
@@ -465,7 +380,7 @@ export default function App() {
                           <td>{member.lineName || <span className="muted">尚未配對</span>}</td>
                           <td>{member.team ? <span className="team-tag">{member.team}</span> : <span className="muted">—</span>}</td>
                           <td><span className={'account-tag ' + (member.accountType === 'alt' ? 'alt' : '')}>{accountLabel(member.accountType)}</span></td>
-                          <td><PairStatus member={member} /></td>
+                          <td><PairStatus member={member} lineRoster={lineRoster} /></td>
                           <td><div className="row-actions">
                             <button title="編輯" aria-label={'編輯 ' + (member.gameId || member.lineName)} className="icon-btn" onClick={() => openEdit(member)}><Pencil size={17} /></button>
                             <button title="刪除" aria-label={'刪除 ' + (member.gameId || member.lineName)} className="icon-btn danger-hover" onClick={() => removeMember(member)}><Trash2 size={17} /></button>
@@ -478,7 +393,7 @@ export default function App() {
                 <div className="member-cards">
                   {visible.map((member) => (
                     <article className="member-card" key={member.id}>
-                      <div className="member-card-heading"><div><strong>{member.gameId || '尚未登記遊戲 ID'}</strong>{searchAll && <span>{member.group}</span>}</div><PairStatus member={member} /></div>
+                      <div className="member-card-heading"><div><strong>{member.gameId || '尚未登記遊戲 ID'}</strong>{searchAll && <span>{member.group}</span>}</div><PairStatus member={member} lineRoster={lineRoster} /></div>
                       <div className="member-card-grid"><div><span>LINE 名稱</span><strong>{member.lineName || '未配對'}</strong></div><div><span>隊伍</span><strong>{member.team || '—'}</strong></div></div>
                       <div className="member-card-footer"><span className={'account-tag ' + (member.accountType === 'alt' ? 'alt' : '')}>{accountLabel(member.accountType)}</span><div className="row-actions"><button className="icon-btn" aria-label="編輯" onClick={() => openEdit(member)}><Pencil size={17} /></button><button className="icon-btn danger-hover" aria-label="刪除" onClick={() => removeMember(member)}><Trash2 size={17} /></button></div></div>
                     </article>
@@ -499,7 +414,7 @@ export default function App() {
       </main>
 
       {modal === 'member' && <MemberModal form={form} setForm={setForm} editing={editing} error={formError} onSave={saveMember} onClose={() => setModal(null)} />}
-      {modal === 'import' && <ImportModal group={group} records={records} onImport={importMembers} onClose={() => setModal(null)} />}
+      {modal === 'import' && <RosterImportModal records={records} lineRoster={lineRoster} onLineImport={importLineRoster} onGameImport={importGameRoster} onClose={() => setModal(null)} />}
       {modal === 'log' && <LogModal logs={logs} onClose={() => setModal(null)} />}
     </div>
   );
