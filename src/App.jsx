@@ -394,8 +394,8 @@ export default function App() {
     <div className="app-shell">
       <header className="topbar">
         <div className="brand">
-          <div className="brand-icon"><UsersRound size={24} strokeWidth={2.3} /></div>
-          <div><h1>公會成員管理</h1><span>Guild Member Manager</span></div>
+          <img className="brand-emblem" src={`${import.meta.env.BASE_URL}fev-logo.svg`} alt="FEV 棒球公會隊徽" />
+          <div><h1><span className="brand-fev">FEV</span> 公會管理</h1><span>BASEBALL CLUBHOUSE <b>·</b> ROSTER SYSTEM</span></div>
         </div>
         <div className="top-actions">
           <span className="local-chip"><Database size={14} /> 本機模式</span>
@@ -408,23 +408,23 @@ export default function App() {
 
       <main className="main-content">
         <div className="page-intro">
-          <div><p className="eyebrow">成員管理</p><h2>管理五個團，一眼找到每位成員。</h2><p className="intro-description">依照遊戲團別整理遊戲 ID、LINE 名稱與隊伍；支援小號和跨團搜尋。</p></div>
+          <div className="hero-copy"><p className="eyebrow"><span className="eyebrow-dot" /> FEV BASEBALL CLUB <span className="hero-eyebrow-separator">//</span> TEAM ROSTER</p><h2><span className="hero-title-english">OWN THE</span> <span className="hero-title-accent">ROSTER.</span></h2><p className="hero-title-chinese">每一位隊員，都在你的掌握之中。</p><p className="intro-description">六團整合管理 · 遊戲 ID × LINE 名稱 · 主號小號即時比對</p><div className="hero-footline"><span className="live-light" /> GUILD DATABASE <span className="hero-rule" /> 5 TEAMS + FREE AGENTS</div></div><div className="hero-visual" aria-hidden="true"><span className="hero-orbit hero-orbit-a" /><span className="hero-orbit hero-orbit-b" /><img src={`${import.meta.env.BASE_URL}fev-logo.svg`} alt="" /></div>
         </div>
 
         <div className="summary-grid" aria-label="名單統計">
-          <div className="summary-card"><span>遊戲帳號</span><strong>{totals.accounts}</strong><small>全部團別</small></div>
-          <div className="summary-card"><span>已配對</span><strong>{totals.paired}</strong><small>同時有遊戲 ID 與 LINE</small></div>
-          <div className="summary-card"><span>待配對</span><strong>{totals.pending}</strong><small>缺少其中一項資料</small></div>
-          <div className="summary-card"><span>LINE 名稱</span><strong>{totals.lines}</strong><small>去除重複名稱，非獨立人數</small></div>
+          <div className="summary-card"><span><span className="stat-id">01</span> 遊戲帳號</span><strong>{totals.accounts}</strong><small>ALL PLAYERS</small></div>
+          <div className="summary-card"><span><span className="stat-id">02</span> 已配對</span><strong>{totals.paired}</strong><small>VERIFIED PAIRS</small></div>
+          <div className="summary-card"><span><span className="stat-id">03</span> 待配對</span><strong>{totals.pending}</strong><small>PENDING MATCH</small></div>
+          <div className="summary-card"><span><span className="stat-id">04</span> LINE 名稱</span><strong>{totals.lines}</strong><small>UNIQUE DISPLAY NAMES</small></div>
         </div>
 
         <section className="roster-panel" aria-label="公會團別名單">
           <div className="tab-scroller">
             <div className="group-tabs" role="tablist" aria-label="團別">
-              {GROUPS.map((item) => (
+              {GROUPS.map((item, index) => (
                 <button role="tab" aria-selected={item === group} key={item} onClick={() => selectGroup(item)}
                   className={'group-tab ' + (item === group ? 'active' : '')}>
-                  <span>{item}</span><span className="tab-count">{records.filter((member) => member.group === item).length}</span>
+                  <span className="tab-index">{index === 5 ? "FA" : String(index + 1).padStart(2, "0")}</span><span className="tab-label">{item}</span><span className="tab-count">{records.filter((member) => member.group === item).length}</span>
                 </button>
               ))}
             </div>
@@ -432,7 +432,7 @@ export default function App() {
 
           <div className="roster-inner">
             <div className="section-heading">
-              <div><h3>{searchAll ? '所有團別' : group + '名單'}</h3><p>顯示 {visible.length} 筆資料{searchAll ? ' · 跨團搜尋' : ''}</p></div>
+              <div><div className="section-overline"><span className="section-overline-mark" /> TEAM MANAGEMENT <span>/</span> PLAYER ROSTER</div><h3>{searchAll ? '所有團別' : group + '名單'}</h3><p>顯示 {visible.length} 筆資料{searchAll ? ' · 跨團搜尋' : ''}</p></div>
               <div className="primary-actions">
                 <button className="btn btn-outline" onClick={() => setModal('import')}><FileUp size={17} /> 匯入<span className="optional-label">名單</span></button>
                 <button className="btn btn-primary" onClick={openNew}><Plus size={18} /> 新增<span className="optional-label">成員</span></button>
@@ -484,7 +484,7 @@ export default function App() {
               </>
             ) : (
               <div className="empty-state">
-                <div className="empty-icon">{search || filter !== 'all' ? <Search size={28} /> : <Inbox size={28} />}</div>
+                <div className="empty-icon"><img src={`${import.meta.env.BASE_URL}fev-mark.svg`} alt="" />{search || filter !== 'all' ? <Search size={24} /> : <Inbox size={24} />}</div>
                 <h4>{search || filter !== 'all' ? '沒有符合條件的成員' : group + '還沒有名單'}</h4>
                 <p>{search || filter !== 'all' ? '試著更換搜尋關鍵字或清除篩選條件。' : '可以新增一筆成員，也可以直接匯入 Excel 或 CSV 名單。'}</p>
                 {!search && filter === 'all' && <button className="btn btn-outline" onClick={() => setModal('import')}><Upload size={17} /> 匯入{group}名單</button>}
