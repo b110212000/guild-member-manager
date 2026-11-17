@@ -1,6 +1,12 @@
-# 公會成員管理 Guild Member Manager
+# FEV 棒球公會管理 | Guild Member Manager
 
 以 **第一團、第二團、第三團、第四團、第五團、無遊戲團** 六個 Tab 為主的遊戲公會成員名單管理網站。
+
+## FEV 暗色棒球視覺
+
+- 黑色俱樂部球場風格與電光藍操作狀態、球場弧線／球縫元素
+- FEV 隊徽 SVG（`public/fev-logo.svg`）、Favicon 與行動裝置標記一致
+- 保留原有六團名單、增修刪、搜尋、Excel/CSV 匯入、備份還原；不改動資料儲存與權限機制
 
 ## 第一版功能
 
