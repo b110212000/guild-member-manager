@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import readXlsxFile from 'read-excel-file/browser';
+import readXlsxFile from 'read-excel-file';
 import {
   AlertCircle, ArrowLeftRight, Check, CheckCircle2, ChevronRight, CircleHelp,
   Database, Download, FileDown, FileSpreadsheet, FileUp, History,
