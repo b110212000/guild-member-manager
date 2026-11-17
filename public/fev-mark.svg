@@ -1,6 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
-<path d="M60 9 104 27 100 83 60 110 20 83 16 27Z" fill="#0d263d" stroke="#1bc9fc" stroke-width="4"/>
-<circle cx="60" cy="48" r="23" fill="#d2e8f4" stroke="#2074b2" stroke-width="3"/>
-<path d="M51 27Q37 48 51 69M69 27Q83 48 69 69" fill="none" stroke="#247bb0" stroke-width="3"/>
-<text x="60" y="87" text-anchor="middle" font-family="Impact,Arial Black,sans-serif" font-size="31" font-style="italic" fill="#fff" stroke="#092034" stroke-width="1">FEV</text>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><rect width="120" height="120" rx="22" fill="#081421"/><text x="60" y="74" text-anchor="middle" font-family="DejaVu Sans,Arial,sans-serif" font-weight="900" font-style="italic" font-size="46" letter-spacing="-3" fill="#effaff" stroke="#14caff" stroke-width="1">FEV</text></svg>

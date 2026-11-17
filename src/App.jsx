@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import readXlsxFile from 'read-excel-file';
+import PwaControls from './PwaControls.jsx';
 import {
   AlertCircle, ArrowLeftRight, Check, CheckCircle2, ChevronRight, CircleHelp,
   Database, Download, FileDown, FileSpreadsheet, FileUp, History,
@@ -394,10 +395,11 @@ export default function App() {
     <div className="app-shell">
       <header className="topbar">
         <div className="brand">
-          <img className="brand-emblem" src={`${import.meta.env.BASE_URL}fev-logo.svg`} alt="FEV 棒球公會隊徽" />
-          <div><h1><span className="brand-fev">FEV</span> 公會管理</h1><span>BASEBALL CLUBHOUSE <b>·</b> ROSTER SYSTEM</span></div>
+          <img className="brand-emblem" src={`${import.meta.env.BASE_URL}fev-logo.svg`} alt="FEV" />
+          <div><h1>公會管理</h1><span>BASEBALL CLUBHOUSE <b>·</b> ROSTER SYSTEM</span></div>
         </div>
         <div className="top-actions">
+          <PwaControls />
           <span className="local-chip"><Database size={14} /> 本機模式</span>
           <button className="btn btn-quiet compact-button" onClick={() => setModal('log')}><History size={17} /><span>操作紀錄</span></button>
           <button className="btn btn-quiet compact-button" onClick={backup}><Download size={17} /><span>備份</span></button>
@@ -408,6 +410,7 @@ export default function App() {
 
       <main className="main-content">
         <div className="page-intro">
+          <img className="baseball-background" src={`${import.meta.env.BASE_URL}baseball-field.svg`} alt="" aria-hidden="true" />
           <div className="hero-copy"><p className="eyebrow"><span className="eyebrow-dot" /> FEV BASEBALL CLUB <span className="hero-eyebrow-separator">//</span> TEAM ROSTER</p><h2><span className="hero-title-english">OWN THE</span> <span className="hero-title-accent">ROSTER.</span></h2><p className="hero-title-chinese">每一位隊員，都在你的掌握之中。</p><p className="intro-description">六團整合管理 · 遊戲 ID × LINE 名稱 · 主號小號即時比對</p><div className="hero-footline"><span className="live-light" /> GUILD DATABASE <span className="hero-rule" /> 5 TEAMS + FREE AGENTS</div></div><div className="hero-visual" aria-hidden="true"><span className="hero-orbit hero-orbit-a" /><span className="hero-orbit hero-orbit-b" /><img src={`${import.meta.env.BASE_URL}fev-logo.svg`} alt="" /></div>
         </div>
 

@@ -1,0 +1,14 @@
+import { readFile, writeFile, readdir, stat } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
+import { resolve, join } from 'node:path';
+const root = resolve(fileURLToPath(new URL('../dist/', import.meta.url)));
+const assets = (await readdir(join(root,'assets'))).filter(f=>/\.(js|css)$/.test(f)).map(f=>'./assets/'+f);
+const list = ['./','./index.html','./manifest.webmanifest','./favicon.svg','./fev-logo.svg','./baseball-field.svg','./icon-192.png','./icon-512.png','./apple-touch-icon.png',...assets];
+const html = await readFile(join(root,'index.html'),'utf8');
+const version = createHash('sha256').update(html + list.join('|')).digest('hex').slice(0,12);
+const source = await readFile(join(root,'sw.js'),'utf8');
+if(!source.includes('__FEV_VERSION__') || !source.includes('__FEV_PRECACHE__')) throw new Error('Service worker placeholders missing');
+for(const name of ['icon-192.png','icon-512.png','apple-touch-icon.png']) await stat(join(root,name));
+await writeFile(join(root,'sw.js'),source.replace('__FEV_VERSION__',version).replace('__FEV_PRECACHE__',JSON.stringify(list)));
+console.log('FEV offline shell precaches',list.length,'assets, revision',version);
