@@ -9,7 +9,7 @@ test('FEV logo, favicon and dark baseball branding are wired', () => {
  assert.match(app, /fev-logo\.svg/g);
  assert.match(app, /OWN THE/);
  assert.match(app, /GROUPS\.map/);
- assert.match(html, /FEV \| 棒球公會管理/);
+ assert.match(html, /FEV \| 公會成員管理/);
  assert.match(styles, /#080d16/);
  assert.match(styles, /\.modal-backdrop/);
  assert.match(crest, /FEV/);
