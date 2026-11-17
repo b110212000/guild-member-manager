@@ -230,3 +230,44 @@ button,input,select{-webkit-tap-highlight-color:transparent}
 .hero-title-chinese,.intro-description{max-width:88%}
 }
 @media(prefers-reduced-motion:reduce){*{transition-duration:.01ms!important;animation-duration:.01ms!important}}
+
+
+/* FEV-only wordmark with baseball styling confined to backgrounds and controls */
+.brand-emblem{width:112px;height:46px;object-fit:contain;filter:drop-shadow(0 0 12px #009cfa35)}
+.brand h1{font-size:15px}
+.hero-visual img{width:min(100%,350px);height:auto;transform:rotate(-4deg);filter:drop-shadow(0 0 25px #21cbff36)}
+.hero-visual{width:360px}
+.baseball-background{position:absolute;inset:0;left:auto;width:84%;height:100%;object-fit:cover;object-position:right center;opacity:.9;z-index:0;pointer-events:none;user-select:none}
+.hero-copy,.hero-visual{z-index:1}
+.page-intro{background:linear-gradient(100deg,#0c1827 3%,#10233d 52%,#09243a 100%)}
+.page-intro:before{z-index:0}
+.empty-icon img{opacity:.4;object-fit:contain}
+.pwa-update-btn{background:#087fb8;color:#f9fcff;border:1px solid #46c6fb}
+.pwa-update-btn:hover{background:#089dd6}
+.pwa-modal{max-width:445px}
+.pwa-body{text-align:center}
+.pwa-preview{width:96px;height:96px;display:block;margin:1px auto 21px;border-radius:18px;box-shadow:0 10px 22px #0007}
+.pwa-steps{text-align:left;display:grid;gap:9px}
+.pwa-steps>div{display:flex;gap:13px;align-items:center;padding:12px 14px;border:1px solid #2b455e;background:#0c2135;border-radius:8px}
+.pwa-steps b{font-family:"Barlow Condensed",sans-serif;letter-spacing:1px;color:#31d7ff;font-size:22px}
+.pwa-steps p{margin:0;color:#c8d9e9;font-size:13px;line-height:1.65}
+.pwa-steps p svg{display:inline;vertical-align:middle;color:#53ceff}
+.pwa-reminder{font-size:11px;line-height:1.8;color:#9bb4ca;text-align:left;background:#142b3e;border:1px solid #2e475f;border-radius:8px;padding:12px;margin:15px 0 0}
+html{background:#080d16}
+@media(max-width:700px){
+  .topbar{height:calc(70px + env(safe-area-inset-top,0px));padding-top:env(safe-area-inset-top,0px)}
+  .main-content{padding-bottom:calc(30px + env(safe-area-inset-bottom,0px))}
+  .brand-emblem{width:70px;height:36px}
+  .brand h1{font-size:12px}
+  .hero-visual{width:185px;max-width:none;right:-19px;opacity:.72}
+  .hero-visual img{width:175px}
+  .baseball-background{width:110%;opacity:.6}
+  .pwa-install-btn{margin-right:1px}
+  .pwa-install-btn span,.pwa-update-btn span{display:none}
+  .pwa-steps>div{padding:10px 12px}
+}
+@media(display-mode:standalone){
+  .app-shell{min-height:100dvh}
+  .topbar{padding-top:max(env(safe-area-inset-top,0px),8px)}
+  .main-content{padding-bottom:max(env(safe-area-inset-bottom,0px),24px)}
+}
