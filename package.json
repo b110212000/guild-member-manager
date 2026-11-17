@@ -1,19 +1,21 @@
 {
   "name": "guild-member-manager",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.3.0",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "build": "vite build",
+    "build": "node scripts/generate-icons.mjs && vite build && node scripts/finalize-sw.mjs",
     "preview": "vite preview --host 0.0.0.0",
-    "test": "node --test"
+    "test": "node --test",
+    "predev": "node scripts/generate-icons.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "read-excel-file": "^5.8.0"
+    "read-excel-file": "^5.8.0",
+    "sharp": "^0.34.4"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.4.1",
