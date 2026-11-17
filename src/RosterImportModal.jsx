@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import readXlsxFile, { readSheetNames } from 'read-excel-file';
 import { Check, Download, FileSpreadsheet, Upload, Users, Gamepad2, ArrowLeft, X, AlertCircle } from 'lucide-react';
-import { parseCsv, recordsToCsv } from './data.js';
+import { parseCsv } from './data.js';
 import { normalizeLineRoster, prepareGameImport, prepareLineImport } from './rosterImport.js';
 
 function download(filename, content) {
@@ -128,7 +128,7 @@ export default function RosterImportModal({ records, lineRoster, onLineImport, o
                     <span className="mini-stat warning">移除舊名單 {removedLines}</span>
                     <span className="mini-stat neutral">重複／無效 {linePreview.duplicates+linePreview.invalid}</span>
                   </div>
-                  <p className="import-notice">將以這份資料更新唯一的 LINE 群組名單。**不會刪除遊戲角色或之前人工建立的配對**。</p>
+                  <p className="import-notice">將以這份資料更新唯一的 LINE 群組名單。不會刪除遊戲角色或之前人工建立的配對。</p>
                   <div className="roster-name-preview">{linePreview.names.slice(0,30).map((name,i)=><span key={i}>{name}</span>)}</div>
                   {linePreview.names.length>30 && <p className="small-muted">只預覽前 30 筆，匯入會處理全部。</p>}
                 </div>
