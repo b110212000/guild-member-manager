@@ -1,14 +1,16 @@
 {
   "name": "guild-member-manager",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.5.0",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "node scripts/generate-icons.mjs && vite build && node scripts/finalize-sw.mjs",
     "preview": "vite preview --host 0.0.0.0",
     "test": "node --test",
-    "predev": "node scripts/generate-icons.mjs"
+    "predev": "node scripts/generate-icons.mjs",
+    "test:worker": "cd worker && npm install --no-audit --no-fund && npm test",
+    "check:worker": "cd worker && npm install --no-audit --no-fund && npm run check"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
