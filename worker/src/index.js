@@ -1,119 +1,118 @@
-import {verifyGoogleIdToken,authorizedEmail} from './auth.js';
-import {sheetRows,appendSheetRow,replaceSheetRow} from './sheets.js';
-import {GROUPS,LINE_HEADERS,GAME_HEADERS,AUDIT_HEADERS,readTable,lineView,validateLine,validateGame,packLine,packGame,assertRevision,stamp} from './logic.js';
+import {
+  DataError,must,readLines,readGames,validateLine,validateGame,
+  publicLine,publicGame,rosterSummary
+} from './model.js';
+import { verifyAdmin } from './auth.js';
+import { googleStore } from './google.js';
 
-const errorStatus={
-  INVALID_JSON:400,INVALID_ENTITY:400,INVALID_ACTION:400,LINE_NAME_REQUIRED:400,INVALID_GROUP:400,
-  INVALID_GAME:400,INVALID_ACCOUNT_TYPE:400,INVALID_LINE_LINK:400,
-  DUPLICATE_GAME_ID:409,STALE_REVISION:409,LINKED_LINE_CANNOT_DELETE:409,NOT_FOUND:404,
-  INVALID_SHEET_HEADERS:503,INVALID_MEMBER_IDS:503,DUPLICATE_MEMBER_IDS:503,
-  UNAUTHORIZED:401,FORBIDDEN:403,NOT_CONFIGURED:503
-};
-const publicConfigured=env=>Boolean(env.GOOGLE_CLIENT_ID&&env.LINE_SHEET_ID&&env.GAME_SHEET_ID&&
-  env.SERVICE_ACCOUNT_EMAIL&&env.SERVICE_ACCOUNT_PRIVATE_KEY&&env.ADMIN_EMAILS&&env.FRONTEND_ORIGIN);
-function json(data,status,origin){
-  const headers={'content-type':'application/json;charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','vary':'Origin'};
-  if(origin){headers['access-control-allow-origin']=origin;headers['access-control-allow-headers']='authorization,content-type';headers['access-control-allow-methods']='GET,POST,OPTIONS';}
-  return new Response(JSON.stringify(data),{status,headers});
+const json = (data,status=200,headers={}) => new Response(JSON.stringify(data),{
+  status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff',...headers}
+});
+const methodList='GET, POST, PUT, DELETE, OPTIONS';
+function corsFor(req,env){
+  const origin=req.headers.get('Origin');
+  const allowed=String(env.ALLOWED_ORIGIN||'').trim();
+  must(allowed,'ALLOWED_ORIGIN 尚未設定',503);
+  if(origin && origin!==allowed)throw new DataError('此來源不可使用 FEV API',403);
+  return origin?{'Access-Control-Allow-Origin':allowed,'Access-Control-Allow-Methods':methodList,
+    'Access-Control-Allow-Headers':'Authorization, Content-Type','Access-Control-Max-Age':'3600','Vary':'Origin'}:{};
 }
-async function load(env) {
-  const [lineRows,gameRows]=await Promise.all([
-    sheetRows(env,env.LINE_SHEET_ID,'Members','D'),
-    sheetRows(env,env.GAME_SHEET_ID,'Members','H')
-  ]);
+async function bodyJson(req){
+  must((req.headers.get('Content-Type')||'').includes('application/json'),'Content-Type 必須是 application/json',415);
+  const text=await req.text();
+  must(text.length<=12000,'資料過長',413);
+  try {
+    const data=JSON.parse(text);
+    must(data&&typeof data==='object'&&!Array.isArray(data),'資料必須是 JSON 物件');
+    return data;
+  } catch(error){
+    if(error instanceof DataError)throw error;
+    throw new DataError('JSON 格式錯誤');
+  }
+}
+const current=async(store)=>{
+  const [l,g]=await Promise.all([store.read('line'),store.read('game')]);
+  return {lines:readLines(l),games:readGames(g)};
+};
+const versionCheck=(current,input)=>{
+  must(typeof input.expectedUpdatedAt==='string' && input.expectedUpdatedAt,'缺少資料版本，請重新整理後操作',428);
+  must(current.updatedAt===input.expectedUpdatedAt,'資料已被其他管理員更新，請重新整理再修改',409);
+};
+async function mutate(req,path,actor,store){
+  const parts=path.split('/').filter(Boolean);
+  const plural=parts[1],id=parts[2]||'';
+  must(['lines','games'].includes(plural)&&parts.length<=3,'路徑不存在',404);
+  const type=plural==='lines'?'line':'game';
+  const isCreate=req.method==='POST',isUpdate=req.method==='PUT',isDelete=req.method==='DELETE';
+  must(isCreate||isUpdate||isDelete,'不支援此方法',405);
+  must(isCreate?!id:!!id,'請提供有效資料 ID',400);
+  const input=await bodyJson(req);
+  const {lines,games}=await current(store);
+  const rows=type==='line'?lines:games;
+  const before=id?rows.find(x=>x.id===id):null;
+  if(!isCreate)must(before,'找不到此筆資料',404);
+  if(before)versionCheck(before,input);
+  if(isDelete&&type==='line'){
+    must(!games.some(g=>g.lineId===id),'此 LINE 成員仍被遊戲角色使用，請先解除配對',409);
+  }
+  const timestamp=new Date().toISOString();
+  const after=isDelete?{...before,deletedAt:timestamp,updatedAt:timestamp,updatedBy:actor.email}:
+    {...(before||{}),...(type==='line'
+      ?validateLine(input,lines,id)
+      :validateGame(input,games,lines,id)),
+      id:before?.id||crypto.randomUUID(),
+      updatedAt:timestamp,updatedBy:actor.email,deletedAt:''};
+  // Fail closed if the private Audit worksheet is missing.
+  await store.checkAudit();
+  await store.write(type,after,before?.rowIndex||null);
+  let auditWarning=false;
+  try{
+    await store.audit({
+      at:timestamp,actor:actor.email,action:isCreate?'create':isUpdate?'update':'delete',
+      entity:type,id:after.id,
+      before:before?type==='line'?publicLine(before):publicGame(before):null,
+      after:isDelete?null:type==='line'?publicLine(after):publicGame(after)
+    });
+  }catch(error){
+    // The write may have succeeded; communicate this explicitly instead of retrying automatically.
+    auditWarning=true;
+    console.error('FEV audit append failed:',error?.message||'unknown');
+  }
+  return json({record:isDelete?null:(type==='line'?publicLine(after):publicGame(after)),auditWarning},isCreate?201:200);
+}
+
+export function createApp({authenticate=verifyAdmin,makeStore=googleStore}={}){
   return {
-    lines:readTable(lineRows,LINE_HEADERS),
-    games:readTable(gameRows,GAME_HEADERS)
+    async fetch(req,env){
+      let cors={};
+      try{
+        cors=corsFor(req,env);
+        const pathname=new URL(req.url).pathname;
+        if(req.method==='OPTIONS')return new Response(null,{status:204,headers:cors});
+        if(pathname==='/health' && req.method==='GET')return json({ok:true,service:'FEV Roster API'},200,cors);
+        must(pathname.startsWith('/api/'),'路徑不存在',404);
+        const actor=await authenticate(req,env);
+        const store=makeStore(env);
+        if(pathname==='/api/bootstrap'&&req.method==='GET'){
+          await store.checkAudit();
+          const {lines,games}=await current(store);
+          return json({actor:actor.email,lines:lines.map(publicLine),games:games.map(publicGame),
+            summary:rosterSummary(lines,games),syncedAt:new Date().toISOString()},200,cors);
+        }
+        if(pathname==='/api/audit'&&req.method==='GET'){
+          return json({entries:await store.auditRead(30)},200,cors);
+        }
+        const response=await mutate(req,pathname,actor,store);
+        // Include CORS headers even for successful updates and deletes.
+        const headers=new Headers(response.headers);
+        for(const [key,value] of Object.entries(cors))headers.set(key,value);
+        return new Response(response.body,{status:response.status,headers});
+      }catch(error){
+        const status=error instanceof DataError?error.status:500;
+        if(!(error instanceof DataError))console.error('FEV Worker unexpected failure:',error?.message||'unknown');
+        return json({error:status===500?'伺服器錯誤，請稍後再試':error.message},status,cors);
+      }
+    }
   };
 }
-function simple(rows) {return rows.map(row=>row.value);}
-async function audit(env,actor,entity,action,id,before,after) {
-  try{
-    await appendSheetRow(env,env.GAME_SHEET_ID,'Audit','G',[
-      stamp(),actor,entity,action,id,JSON.stringify(before||null),JSON.stringify(after||null)
-    ]);
-    return true;
-  }catch{return false;}
-}
-async function mutate(env,actor,input) {
-  const entity=input.entity,action=input.action;
-  if(!['line','game'].includes(entity))throw new Error('INVALID_ENTITY');
-  if(!['create','update','delete'].includes(action))throw new Error('INVALID_ACTION');
-  const data=await load(env);
-  const lines=simple(data.lines),games=simple(data.games);
-  const id=String(input.id||'');
-  const table=entity==='line'?data.lines:data.games;
-  const found=table.find(row=>row.value.id===id);
-  if(action!=='create'&&!found)throw new Error('NOT_FOUND');
-  if(action!=='create')assertRevision(found.value,input.expectedUpdatedAt);
-  if(action==='create'&&id)throw new Error('INVALID_ACTION');
-  const now=stamp(),before=found?.value||null;
-  let next;
-  if(action==='delete'){
-    if(entity==='line'&&games.some(game=>game.lineMemberId===id))throw new Error('LINKED_LINE_CANNOT_DELETE');
-    next={...found.value,updatedAt:now,deletedAt:now};
-  }else if(entity==='line'){
-    next={...before,...validateLine(input.data),id:action==='create'?crypto.randomUUID():id,updatedAt:now,deletedAt:''};
-  }else{
-    next={...before,...validateGame(input.data,lines,games,action==='create'?'':id),
-      id:action==='create'?crypto.randomUUID():id,updatedAt:now,deletedAt:''};
-  }
-  const sheetId=entity==='line'?env.LINE_SHEET_ID:env.GAME_SHEET_ID;
-  const columns=entity==='line'?'D':'H';
-  const row=entity==='line'?packLine(next):packGame(next);
-  if(action==='create')await appendSheetRow(env,sheetId,'Members',columns,row);
-  else await replaceSheetRow(env,sheetId,'Members',columns,found.rowNumber,row);
-  const auditSaved=await audit(env,actor,entity,action,next.id,before,next);
-  return {record:next,auditSaved};
-}
-
-export default {
-  async fetch(request,env){
-    const url=new URL(request.url);
-    const origin=request.headers.get('origin');
-    const allowed=env.FRONTEND_ORIGIN||'';
-    // No wildcard CORS; a browser can only call from this configured frontend origin.
-    if(origin&&origin!==allowed)return json({error:'FORBIDDEN_ORIGIN'},403);
-    if(request.method==='OPTIONS')return json({},204,origin||allowed);
-    if(url.pathname==='/api/config'&&request.method==='GET')
-      return json({configured:publicConfigured(env),clientId:env.GOOGLE_CLIENT_ID||''},200,origin||allowed);
-    if(!url.pathname.startsWith('/api/'))return json({error:'NOT_FOUND'},404,origin||allowed);
-    if(!publicConfigured(env))return json({error:'NOT_CONFIGURED'},503,origin||allowed);
-    const bearer=request.headers.get('authorization')||'';
-    if(!bearer.startsWith('Bearer '))return json({error:'UNAUTHORIZED'},401,origin||allowed);
-    let actor;
-    try {
-      const profile=await verifyGoogleIdToken(bearer.slice(7),env.GOOGLE_CLIENT_ID);
-      if(!authorizedEmail(profile.email,env.ADMIN_EMAILS))return json({error:'FORBIDDEN'},403,origin||allowed);
-      actor=profile.email;
-    }catch{return json({error:'UNAUTHORIZED'},401,origin||allowed);}
-    try{
-      if(url.pathname==='/api/snapshot'&&request.method==='GET'){
-        const [data,auditRows]=await Promise.all([
-          load(env),sheetRows(env,env.GAME_SHEET_ID,'Audit','G')
-        ]);
-        readTableAudit(auditRows);
-        const lines=simple(data.lines),games=simple(data.games);
-        const auditEntries=auditRows.slice(-41).slice(1).reverse().map(row=>({
-          timestamp:row[0]||'',actor:row[1]||'',entity:row[2]||'',action:row[3]||'',recordId:row[4]||''
-        }));
-        return json({lines,games,...lineView(lines,games),audit:auditEntries,syncedAt:stamp(),actor},200,origin||allowed);
-      }
-      if(url.pathname==='/api/mutate'&&request.method==='POST'){
-        if(Number(request.headers.get('content-length')||0)>16384)return json({error:'INVALID_JSON'},400,origin||allowed);
-        let input;try{input=JSON.parse(await request.text());}catch{throw new Error('INVALID_JSON');}
-        if(!input||JSON.stringify(input).length>16384)throw new Error('INVALID_JSON');
-        const result=await mutate(env,actor,input);
-        return json({ok:true,...result},200,origin||allowed);
-      }
-      return json({error:'NOT_FOUND'},404,origin||allowed);
-    }catch(error){
-      const code=error.message||'INTERNAL';
-      const isGoogle=code.startsWith('GOOGLE_');
-      return json({error:isGoogle?'SHEETS_UNAVAILABLE':errorStatus[code]?code:'INTERNAL'},isGoogle?502:errorStatus[code]||500,origin||allowed);
-    }
-  }
-};
-function readTableAudit(values) {
-  if(!values.length||AUDIT_HEADERS.some((h,i)=>values[0][i]!==h))throw new Error('INVALID_SHEET_HEADERS');
-}
+export default createApp();
