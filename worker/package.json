@@ -1,0 +1,16 @@
+{
+  "name": "fev-roster-api",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "scripts": {
+    "test": "node --test",
+    "check": "node --check src/index.js && node --check src/google.js && node --check src/auth.js"
+  },
+  "dependencies": {
+    "jose": "^6.0.8"
+  },
+  "devDependencies": {
+    "wrangler": "^4.45.0"
+  }
+}
