@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createApp } from '../src/index.js';
-import { LINE_HEADER,GAME_HEADER,readLines,readGames,validateGame,rosterSummary } from '../src/model.js';
+import { DataError,LINE_HEADER,GAME_HEADER,readLines,readGames,validateGame,rosterSummary } from '../src/model.js';
 import { checkIdentity } from '../src/auth.js';
 
 function fixture(){
@@ -51,9 +51,9 @@ test('Google admin white list rejects unverified or unauthorized emails',()=>{
 });
 test('unauthorized request does not read private rosters',async()=>{
   let readCount=0;
-  const app=createApp({authenticate:async()=>{throw Object.assign(new Error('未登入'),{status:401})},makeStore:()=>({read:async()=>{readCount++}})});
+  const app=createApp({authenticate:async()=>{throw new DataError('未登入',401)},makeStore:()=>({read:async()=>{readCount++}})});
   const res=await app.fetch(new Request('https://worker.example/api/bootstrap',{headers:{Origin:'https://b110212000.github.io'}}),{ALLOWED_ORIGIN:'https://b110212000.github.io'});
-  assert.equal(res.status,500); // A non-DataError is intentionally masked from users.
+  assert.equal(res.status,401);
   assert.equal(readCount,0);
 });
 test('CORS disallows other origins before accessing sheets',async()=>{

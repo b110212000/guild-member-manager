@@ -1,4 +1,4 @@
-import {useEffect,useMemo,useRef,useState} from 'react';
+import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import {
   AlertTriangle,ArrowLeft,Check,CheckCircle2,Cloud,CloudOff,
   History,Link2,LogOut,Pencil,Plus,RefreshCw,Search,ShieldCheck,
@@ -133,7 +133,7 @@ export default function CloudApp(){
   const tokenRef=useRef(null);
   const lock=useRef(false);
   const actor=data.actor||'';
-  const acceptToken=value=>{tokenRef.current=value;setAuthError('');setToken(value);};
+  const acceptToken=useCallback(value=>{tokenRef.current=value;setAuthError('');setToken(value);},[]);
   async function loadData(currentToken=tokenRef.current,silent=false){
     if(!currentToken||lock.current)return;
     lock.current=true;

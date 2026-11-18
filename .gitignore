@@ -14,3 +14,8 @@ worker/.dev.vars
 worker/.dev.vars.*
 !worker/.dev.vars.example
 *.service-account.json
+
+# Private Cloudflare local secrets
+.dev.vars
+worker/.dev.vars
+worker/node_modules/

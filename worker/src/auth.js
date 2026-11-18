@@ -6,7 +6,7 @@ export function allowedEmails(env){
 }
 export function checkIdentity(payload,env){
   const email=String(payload.email||'').trim().toLowerCase();
-  if(!payload.email_verified||!email||!allowedEmails(env).has(email)) throw new DataError('這個 Google 帳號沒有 FEV 管理員權限',403);
+  if(payload.email_verified!==true||!email||!allowedEmails(env).has(email)) throw new DataError('這個 Google 帳號沒有 FEV 管理員權限',403);
   return {email,sub:String(payload.sub)};
 }
 export async function verifyAdmin(req,env){

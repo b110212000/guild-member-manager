@@ -24,3 +24,4 @@ jobs:
       - name: Test authentication, Google Sheets model and CRUD API
         run: npm test
         working-directory: worker
+

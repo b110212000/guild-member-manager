@@ -1,6 +1,7 @@
+const viteEnv = import.meta.env || {};
 export const CLOUD_CONFIG = {
-  apiBase: String(import.meta.env.VITE_FEV_API_BASE_URL || '').replace(/\/+$/,''),
-  clientId: String(import.meta.env.VITE_FEV_GOOGLE_CLIENT_ID || '')
+  apiBase: String(viteEnv.VITE_FEV_API_BASE_URL || '').replace(/\/+$/,''),
+  clientId: String(viteEnv.VITE_FEV_GOOGLE_CLIENT_ID || '')
 };
 export const CLOUD_CONFIGURED = Boolean(CLOUD_CONFIG.apiBase && CLOUD_CONFIG.clientId);
 export class CloudError extends Error {
