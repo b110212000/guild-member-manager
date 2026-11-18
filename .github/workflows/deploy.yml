@@ -32,7 +32,11 @@ jobs:
           node-version: '22'
       - run: npm install --no-audit --no-fund
       - run: npm test
-      - run: npm run build
+      - name: Build FEV frontend
+        env:
+          VITE_FEV_API_URL: ${{ vars.FEV_API_URL }}
+          VITE_GOOGLE_CLIENT_ID: ${{ vars.FEV_GOOGLE_CLIENT_ID }}
+        run: npm run build
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
