@@ -1,0 +1,13 @@
+name = "fev-sheets-api"
+main = "worker/src/index.js"
+compatibility_date = "2026-11-18"
+workers_dev = true
+
+[vars]
+FRONTEND_ORIGIN = "https://b110212000.github.io"
+
+# Set these values using 'npx wrangler secret put NAME':
+# GOOGLE_CLIENT_ID (public OAuth web client ID)
+# ADMIN_EMAILS (comma-separated authorized Google email addresses)
+# LINE_SHEET_ID and GAME_SHEET_ID (two PRIVATE spreadsheet IDs)
+# SERVICE_ACCOUNT_EMAIL and SERVICE_ACCOUNT_PRIVATE_KEY (never commit)
