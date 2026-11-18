@@ -1,8 +1,0 @@
-# Local Worker development ONLY. Copy to .dev.vars (gitignored).
-# NEVER commit .dev.vars or a Google service-account JSON file.
-GOOGLE_CLIENT_ID="YOUR_WEB_CLIENT_ID.apps.googleusercontent.com"
-ADMIN_EMAILS="admin@example.com"
-LINE_SHEET_ID="SPREADSHEET_ID_LINE"
-GAME_SHEET_ID="SPREADSHEET_ID_GAME"
-SERVICE_ACCOUNT_EMAIL="service-account@your-project.iam.gserviceaccount.com"
-SERVICE_ACCOUNT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nREPLACE_ME\n-----END PRIVATE KEY-----\n"
